@@ -1,14 +1,13 @@
 extern crate image;
 extern crate pingui;
 extern crate piston_window;
-extern crate rand;
 
 use piston_window::*;
 
 use pingui::GuiElement;
 use pingui::{HAlign, Offset, VAlign};
 
-use image::GenericImage;
+use image::{GenericImage, GenericImageView};
 
 struct World {
     pub arms: Vec<(f64, f64)>,
@@ -85,7 +84,7 @@ fn main() {
     let mut arms_input: Vec<pingui::MultiBox> = Vec::new();
 
     let mut world = World::new();
-    let mut draw_image = image::RgbaImage::new(window.size().width, window.size().height);
+    let mut draw_image = image::RgbaImage::new(window.size().width as u32, window.size().height as u32);
     let mut draw_texture = Texture::from_image(
         &mut window.factory,
         &draw_image,
@@ -101,7 +100,7 @@ fn main() {
         gui.event(&e);
 
         if let Some(dimensions) = e.resize_args() {
-            draw_image = image::RgbaImage::new(dimensions[0], dimensions[1]);
+            draw_image = image::RgbaImage::new(dimensions[0] as u32, dimensions[1] as u32);
             draw_texture = Texture::from_image(
                 &mut window.factory,
                 &draw_image,
@@ -244,20 +243,21 @@ fn draw_line(image: &mut image::RgbaImage, from: &(f64, f64), to: &(f64, f64), c
     use std::f64;
 
     let delta = (to.0 - from.0, to.1 - from.1);
-    let steps = u32::max(delta.0.abs().ceil() as u32, delta.1.abs().ceil() as u32);
-    let x_step = delta.0 as f64 / f64::from(steps);
-    let y_step = delta.1 as f64 / f64::from(steps);
+    // The longest distance between the x or y axis is the number of steps
+    let steps = f64::max(delta.0.abs(), delta.1.abs()).ceil() as u32;
+    let x_step = delta.0 / f64::from(steps);
+    let y_step = delta.1 / f64::from(steps);
 
-    let length = (delta.0.powi(2) + delta.1.powi(2)).sqrt() * 5.0;
+    let length = (delta.0.powi(2) + delta.1.powi(2)).sqrt();
     let normal = (delta.1 / length, -delta.0 / length);
 
-    let line_dim = 2;
-    let mut x = from.0 as f64;
-    let mut y = from.1 as f64;
+    let line_dim = 5;
+    let mut x = from.0;
+    let mut y = from.1;
     for _ in 0..steps {
-        for dim in 0..(line_dim * 5) {
-            let x = (x + normal.0 * f64::from(dim)).round() as u32;
-            let y = (y + normal.1 * f64::from(dim)).round() as u32;
+        for dim in 0..line_dim {
+            let x = (x + normal.0 * f64::from(dim)).floor() as u32;
+            let y = (y + normal.1 * f64::from(dim)).floor() as u32;
 
             if !image.in_bounds(x, y) {
                 break;
