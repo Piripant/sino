@@ -1,13 +1,7 @@
-extern crate image;
-extern crate pingui;
-extern crate piston_window;
-
 use piston_window::*;
 
 use pingui::GuiElement;
 use pingui::{HAlign, Offset, VAlign};
-
-use image::{GenericImage, GenericImageView};
 
 struct World {
     pub arms: Vec<(f64, f64)>,
@@ -84,12 +78,14 @@ fn main() {
     let mut arms_input: Vec<pingui::MultiBox> = Vec::new();
 
     let mut world = World::new();
-    let mut draw_image = image::RgbaImage::new(window.size().width as u32, window.size().height as u32);
+    let mut draw_image =
+        ::image::RgbaImage::new(window.size().width as u32, window.size().height as u32);
     let mut draw_texture = Texture::from_image(
         &mut window.factory,
         &draw_image,
         &TextureSettings::new().filter(Filter::Nearest),
-    ).unwrap();
+    )
+    .unwrap();
 
     let mut new_trace = vec![(0.0, 0.0)];
     let mut positions = Vec::new();
@@ -100,12 +96,13 @@ fn main() {
         gui.event(&e);
 
         if let Some(dimensions) = e.resize_args() {
-            draw_image = image::RgbaImage::new(dimensions[0] as u32, dimensions[1] as u32);
+            draw_image = ::image::RgbaImage::new(dimensions[0] as u32, dimensions[1] as u32);
             draw_texture = Texture::from_image(
                 &mut window.factory,
                 &draw_image,
                 &TextureSettings::new().filter(Filter::Nearest),
-            ).unwrap();
+            )
+            .unwrap();
         }
 
         let offset_x = f64::from(draw_image.width()) / 2.0;
@@ -195,7 +192,7 @@ fn main() {
                 // GUI
                 if clear_button.is_pressed() {
                     for pixel in draw_image.pixels_mut() {
-                        *pixel = image::Rgba([0, 0, 0, 0]);
+                        *pixel = ::image::Rgba([0, 0, 0, 0]);
                     }
                 }
 
@@ -239,44 +236,50 @@ fn main() {
     }
 }
 
-fn draw_line(image: &mut image::RgbaImage, from: &(f64, f64), to: &(f64, f64), color: [u8; 4]) {
-    use std::f64;
+fn draw_line(image: &mut ::image::RgbaImage, from: &(f64, f64), to: &(f64, f64), color: [u8; 4]) {
+    use imageproc::drawing;
+
+    let line_thickness = 2.0;
 
     let delta = (to.0 - from.0, to.1 - from.1);
-    // The longest distance between the x or y axis is the number of steps
-    let steps = f64::max(delta.0.abs(), delta.1.abs()).ceil() as u32;
-    let x_step = delta.0 / f64::from(steps);
-    let y_step = delta.1 / f64::from(steps);
-
     let length = (delta.0.powi(2) + delta.1.powi(2)).sqrt();
-    let normal = (delta.1 / length, -delta.0 / length);
 
-    let line_dim = 5;
-    let mut x = from.0;
-    let mut y = from.1;
-    for _ in 0..steps {
-        for dim in 0..line_dim {
-            let x = (x + normal.0 * f64::from(dim)).floor() as u32;
-            let y = (y + normal.1 * f64::from(dim)).floor() as u32;
+    if length != 0.0 {
+        let normal = (
+            delta.1 / length * line_thickness,
+            -delta.0 / length * line_thickness,
+        );
 
-            if !image.in_bounds(x, y) {
-                break;
-            }
+        let points = vec![
+            drawing::Point::new(
+                (from.0 - normal.0 / 2.0).round() as i32,
+                (from.1 - normal.1 / 2.0).round() as i32,
+            ),
+            drawing::Point::new(
+                (to.0 - normal.0 / 2.0).round() as i32,
+                (to.1 - normal.1 / 2.0).round() as i32,
+            ),
+            drawing::Point::new(
+                (to.0 + normal.0 / 2.0).round() as i32,
+                (to.1 + normal.1 / 2.0).round() as i32,
+            ),
+            drawing::Point::new(
+                (from.0 + normal.0 / 2.0).round() as i32,
+                (from.1 + normal.1 / 2.0).round() as i32,
+            ),
+        ];
 
-            image.put_pixel(x, y, image::Rgba(color));
-        }
-
-        x += x_step;
-        y += y_step;
+        println!("{:?}", delta);
+        drawing::draw_convex_polygon_mut(image, &points, ::image::Rgba(color))
     }
 }
 
 /// Gets the used space in the image
-fn get_used(image: &image::RgbaImage) -> (u32, u32, u32, u32) {
+fn get_used(image: &::image::RgbaImage) -> (u32, u32, u32, u32) {
     let mut min = (image.width(), image.height());
     let mut max = (0, 0);
 
-    let blank = image::Rgba([0, 0, 0, 0]);
+    let blank = ::image::Rgba([0, 0, 0, 0]);
     for x in 0..image.width() {
         for y in 0..image.height() {
             let pixel = *image.get_pixel(x, y);
@@ -292,14 +295,14 @@ fn get_used(image: &image::RgbaImage) -> (u32, u32, u32, u32) {
     (min.0, min.1, max.0, max.1)
 }
 
-fn save(image: &image::RgbaImage) {
+fn save(image: &::image::RgbaImage) {
     let (start_x, start_y, end_x, end_y) = get_used(image);
 
-    let wdith = end_x - start_x;
+    let width = end_x - start_x;
     let height = end_y - start_y;
 
     // Remove all the blank areas
     let cropped_image =
-        image::imageops::crop(&mut image.clone(), start_x, start_y, wdith, height).to_image();
+        ::image::imageops::crop(&mut image.clone(), start_x, start_y, width + 1, height + 1).to_image();
     cropped_image.save("save.png").unwrap();
 }
