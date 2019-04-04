@@ -81,3 +81,77 @@ fn random(world: &mut World, arms: u32) {
         world.add_arm(length, velocity);
     }
 }
+
+// Rect
+use imageproc::drawing;
+let line_thickness = 1.0;
+
+let delta = (to.0 - from.0, to.1 - from.1);
+let length = (delta.0.powi(2) + delta.1.powi(2)).sqrt();
+
+if length != 0.0 {
+    let normal = (
+        delta.1 / length * line_thickness,
+        -delta.0 / length * line_thickness,
+    );
+
+    let points = vec![
+        drawing::Point::new(
+            (from.0 - normal.0 / 2.0).floor() as i32,
+            (from.1 - normal.1 / 2.0).floor() as i32,
+        ),
+        drawing::Point::new(
+            (to.0 - normal.0 / 2.0).floor() as i32,
+            (to.1 - normal.1 / 2.0).floor() as i32,
+        ),
+        drawing::Point::new(
+            (to.0 + normal.0 / 2.0).floor() as i32,
+            (to.1 + normal.1 / 2.0).floor() as i32,
+        ),
+        drawing::Point::new(
+            (from.0 + normal.0 / 2.0).floor() as i32,
+            (from.1 + normal.1 / 2.0).floor() as i32,
+        ),
+    ];
+
+    println!("{:?}", delta);
+    drawing::draw_convex_polygon_mut(image, &points, ::image::Rgba(color))
+}
+
+
+// Broshas
+let from = (from.0 as i32, from.1 as i32);
+let to = (to.0 as i32, to.1 as i32);
+
+let dx = (to.0 - from.0).abs();
+let dy = (to.1 - from.1).abs();
+
+println!("{}, {}: {:?}->{:?}", dx, dy, from, to);
+
+let (mut x, mut y) = from;
+let sx = if from.0 > to.0 { -1 } else { 1 };
+let sy = if from.1 > to.1 { -1 } else { 1 };
+if dx > dy {
+    let mut err = dx as f64 / 2.0;
+    while x != to.0 {
+        image.put_pixel(x as u32, y as u32, ::image::Rgba(color));
+        err -= dy as f64;
+        if err < 0.0 {
+            y += sy;
+            err += dx as f64;
+        }
+        x += sx;
+    }
+}
+else {
+    let mut err = dy as f64 / 2.0;
+    while y != to.1 {
+        image.put_pixel(x as u32, y as u32, ::image::Rgba(color));
+        err -= dx as f64;
+        if err < 0.0 {
+            x += sx;
+            err += dy as f64;
+        }
+        y += sy;
+    }
+}
